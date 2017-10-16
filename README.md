@@ -9,6 +9,8 @@ added to RIG tool category in Toolbar
 
 Functions  
 
+**Copy selected bones** - Copy selected bones to another armature in selection (new armature if no secondary armature selected) and copy transform every bones to source bones (created to extract boens from proxy)  
+
 **Calculate pole target angle** - for IK et the pole target angle to match rest pose for Ik constraint bones and pole target  
 
 **Parent converter (keep transform on/off)** - direct existing parent (ctrl+p) in selection become a skinned parent with armature  
