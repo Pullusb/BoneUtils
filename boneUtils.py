@@ -2,7 +2,7 @@ bl_info = {
     "name": "Bone utils",
     "description": "Some practical functions for bones",
     "author": "Samuel Bernou",
-    "version": (0, 0, 3),
+    "version": (0, 0, 4),
     "blender": (2, 77, 0),
     "location": "View3D",
     "warning": "",
@@ -14,7 +14,7 @@ import bpy, re, os
 
 from mathutils import *
 from math import radians
-
+from math import atan, pi, degrees
 
 def check_widget(ob, link=True):
     if not bpy.context.scene.objects.get(ob.name):
@@ -295,6 +295,131 @@ class relink_all_widgets_OP(bpy.types.Operator):
                 check_widget(ob)
         return {"FINISHED"}
 
+###---extract proxy bones
+
+def getRoll(bone):
+    '''take a bone and return roll in radians'''
+    #need: from math import atan, pi, degrees
+    mat = bone.matrix_local.to_3x3()
+    quat = mat.to_quaternion()
+    if abs(quat.w) < 1e-4:
+        roll = pi
+    else:
+        roll = 2*atan(quat.y/quat.w)
+
+    ##return as radians
+    return roll
+    # return degrees(roll)
+
+def add_copy_transform(b, tgt_arm, tgt_bone_name, name='', influence=1):
+    '''posebone, tgt-arm is an armature object, subtarget bone name
+    optional: name for the constraints and base influence (default is 1)'''
+    #add_cp
+    cs = b.constraints.new('COPY_TRANSFORMS')
+    cs.target = tgt_arm
+    cs.subtarget = tgt_bone_name
+    cs.influence = influence
+    if name:
+        cs.name = name
+    print("added constraint", cs)
+
+#---
+def extract_selected_bones():
+    C=bpy.context
+    active_object = bpy.context.object
+    selected_objects = [o for o in bpy.context.selected_objects if o != active_object and o.type == active_object.type]
+
+    #get list of bones from selection
+    m = bpy.context.mode
+    bonelist = []
+    if active_object.type == 'ARMATURE':
+        #get edit_bones
+        for b in active_object.data.bones:
+            if b.select:
+                bonelist.append(b)
+
+    else:
+        print('Needs to select an armature')
+        return
+
+    if not bonelist:
+        print ('Needs to select some bones to extract')
+        return
+
+    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+
+    # bones créés dans l'armatures des others selected objects (si aucun, créer une nouvelle armature)
+    otherArm = [o for o in selected_objects if o.type == 'ARMATURE']
+    if otherArm:
+        obarm = otherArm[0]
+        #eb = otherArm.data.bones.active
+        print('dest armature ->', obarm.name)# eb.name
+
+    else:
+        #prepare armature name
+        if C.object.name.endswith('_rig'):
+            armname = C.object.name.replace('_rig', '_FW')
+        else:
+            armname = C.object.name + '_FW'
+        #create a new armature
+        amt = bpy.data.armatures.new(armname + '_arm')
+        obarm = bpy.data.objects.new(armname + '_rig', amt)
+        C.scene.objects.link(obarm)
+        obarm.select = True
+        obarm.show_x_ray = True#display option
+        arm = obarm.data
+
+
+    #Bones creation
+    C.scene.objects.active = obarm
+    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+    ebs = obarm.data.edit_bones
+
+    pair_L = []
+    for eb in bonelist:
+        if eb.name.startswith('MCH'):
+            name = eb.name.replace('MCH-', 'MCHF-')
+        else:
+            name = 'MCHF-' + eb.name
+
+        nb = ebs.new(name)
+        nb.head = eb.head_local
+        nb.tail = eb.tail_local
+        nb.roll = getRoll(eb)
+        print(nb.name)#Dbg
+        print("name", nb.name,"head", nb.head,"tail", nb.tail,"roll", nb.roll)#Dbg
+
+        pair_L.append([nb.name, eb.name])
+        #add_copy_transform(obarm.pose.bones[nb.name], active_object, eb.name)#armature not updated
+
+    # exit edit mode to save bones so they can be used in pose mode
+    bpy.ops.object.mode_set(mode='OBJECT')
+    #refresh armature,
+    #create copy transform constraints
+
+    for b in pair_L:
+        add_copy_transform(obarm.pose.bones[b[0]], active_object, b[1])
+
+    print('DONE')
+    return len(bonelist)
+
+
+class copy_extract_selected_bones_OP(bpy.types.Operator):
+    bl_idname = "boneutils.copy_extract_selected_bones"
+    bl_label = "Copy selected bones"
+    bl_description = "Copy selected bones to another/new armature and copy transform to source bones"
+    bl_options = {"REGISTER"}
+
+    def execute(self, context):
+        num = extract_selected_bones()
+        if num:
+            mess = str(num) + ' bones copied'
+            self.report({'INFO'}, mess)#WARNING, ERROR
+
+        return {"FINISHED"}
+
+
+
 ######---DRAW
 
 class boneUtilsPanel(bpy.types.Panel):
@@ -306,6 +431,7 @@ class boneUtilsPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.operator(operator = 'boneutils.copy_extract_selected_bones')
         layout.operator(operator = 'boneutils.calculate_pole_target_angle')
         row = layout.row(align=False)
         row.operator(operator = 'boneutils.parent_converter', text='Convert parent to skin').keep_transform = 0
