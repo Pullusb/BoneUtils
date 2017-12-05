@@ -23,3 +23,9 @@ i.e: bone_05.001 >> bone_06, bone_06.002 >> bone_08
 
 **Rename bone chain** - rename recursively child bones in bone chain based on number in name of parent  
 i.e: selected bones : Arm_01.L, childs will be Arm_02.L then Arm_03.L and so on.
+
+**Retarget armature modifier** - change target armature of armature modifier existing for selected objects
+(if nothing in the target field, target the armature in selection)
+
+Update 2017/12/5 - v0.0.7:
+  - retarget armature field and button
