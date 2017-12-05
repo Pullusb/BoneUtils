@@ -1,8 +1,8 @@
 bl_info = {
     "name": "Bone utils",
-    "description": "Some practical functions for bones",
+    "description": "Some usefull functions for bones and rigging",
     "author": "Samuel Bernou",
-    "version": (0, 0, 4),
+    "version": (0, 0, 7),
     "blender": (2, 77, 0),
     "location": "View3D",
     "warning": "",
@@ -159,6 +159,10 @@ def incrementFirstValue():
         bonelist = bpy.context.selected_pose_bones
     elif C.mode == 'EDIT_ARMATURE':
         bonelist = bpy.context.selected_bones
+    elif C.mode == 'OBJECT':
+        bonelist = bpy.context.selected_objects
+    else:
+        return
 
     for b in bonelist:
         name = b.name
@@ -260,6 +264,10 @@ class rename_bone_chain(bpy.types.Operator):
     bl_description = "rename incremented bone chain recursively from active bone"
     bl_options = {"REGISTER"}
 
+    @classmethod
+    def poll(cls, context):
+        return context.mode in ('POSE','EDIT_ARMATURE')
+
     def execute(self, context):
         renameBoneChain()
         return {"FINISHED"}
@@ -316,7 +324,9 @@ def add_copy_transform(b, tgt_arm, tgt_bone_name, name='', influence=1):
     optional: name for the constraints and base influence (default is 1)'''
     #add_cp
     cs = b.constraints.new('COPY_TRANSFORMS')
-    cs.target = tgt_arm
+    #try to get rig version instead of proxy in constraint
+    rig = bpy.data.objects.get(tgt_arm.name.replace('_proxy','_rig') )
+    cs.target = rig if rig else tgt_arm
     cs.subtarget = tgt_bone_name
     cs.influence = influence
     if name:
@@ -419,6 +429,55 @@ class copy_extract_selected_bones_OP(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class retarget_to_armature_OP(bpy.types.Operator):
+    bl_idname = "boneutils.retarget_to_armature"
+    bl_label = "Retarget armature modifier"
+    bl_description = "Change the target of the modifier armature to rig designated in field\nor armature in selection if field is empty"
+    bl_options = {"REGISTER"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.mode == 'OBJECT'
+
+    bpy.types.Scene.bone_utils_tgt_rig = bpy.props.StringProperty(name = "Target rig", description = "Target rig for selected objects armature modifier")
+
+    def execute(self, context):
+        #if no armature is specified in field use one found in selection (OR object field ?)
+        target = context.scene.bone_utils_tgt_rig
+        if target:
+            #give a string, get object from string
+            target = bpy.data.objects.get(target)
+
+        if target and target.type != 'ARMATURE':
+            self.report({'ERROR'}, 'Target must be an armature type')
+            return {"FINISHED"}
+
+        if not target:#switch to armature in selection to target
+            target = [i for i in bpy.context.selected_objects if i.type == 'ARMATURE']
+            if target:
+                target = target[0]#get fisrt element of the list
+
+        if not target:
+            self.report({'ERROR'}, 'No Armature found in selection or in target field')
+            return {"FINISHED"}
+
+        ct = 0
+        for ob in bpy.context.selected_objects:
+            if ob.modifiers:
+                for m in ob.modifiers:
+                    if m.type == 'ARMATURE':
+                        if m.object != target:
+                            ct += 1
+                            print("retargeting >", ob.name)#Dbg
+                            m.object = target
+                        else:
+                            print("already good >", ob.name)#Dbg
+
+        if ct:
+            mess = str(ct) + ' armature retarget'
+            self.report({'INFO'}, mess)
+        return {"FINISHED"}
+
 
 ######---DRAW
 
@@ -445,6 +504,11 @@ class boneUtilsPanel(bpy.types.Panel):
         layout.label('rename utils')
         layout.operator(operator = 'boneutils.increment_values')
         layout.operator(operator = 'boneutils.rename_bone_chain')
+
+        layout.separator()
+        layout.label('retargeting')
+        layout.prop_search(context.scene, "bone_utils_tgt_rig", bpy.data, "objects",text="Target rig")
+        layout.operator(operator = 'boneutils.retarget_to_armature')
 
 
 
