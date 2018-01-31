@@ -1,5 +1,7 @@
 # BoneUtils
 Blender Addon - Various tool to rigging purpose  
+
+**[Download latest](https://raw.githubusercontent.com/Pullusb/BoneUtils/master/boneUtils.py)** (right click, save Target as)  
   
 ---
   
