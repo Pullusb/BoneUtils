@@ -11,13 +11,13 @@ added to RIG tool category in Toolbar
 
 Functions  
 
-**Copy selected bones** - Copy selected bones to another armature in selection (new armature if no secondary armature selected) and copy transform every bones to source bones (created to extract boens from proxy)  
+**Copy selected bones** - Copy selected bones to another armature in selection (new armature if no secondary armature selected) and copy transform every bones to source bones (created to extract bones from proxy)  
 
-**Calculate pole target angle** - for IK et the pole target angle to match rest pose for Ik constraint bones and pole target  
+**Calculate pole target angle** - for IK and the pole target angle to match rest pose for Ik constraint bones and pole target  
 
 **Parent converter (keep transform on/off)** - direct existing parent (ctrl+p) in selection become a skinned parent with armature  
 
-**Relink all widgets (all/selection)** - Relink all bones custom shapes objects that aren'nt in the scene on layer 10 (everything or current posebone selection)  
+**Relink all widgets (all/selection)** - Relink all bones custom shapes objects that are not in the scene on layer 10 (everything or current posebone selection)  
   
 renaming utility:  
 **Increment values** - increment bone name for duplication based on suffix number  
